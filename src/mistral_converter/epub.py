@@ -1,21 +1,11 @@
 import base64
-import json
 import re
-from dataclasses import dataclass
 from pathlib import Path
 
 from ebooklib import epub
 
 from mistral_converter.content import Chapter, Heading, body_markdown, split_chapters
-
-@dataclass
-class Metadata:
-    title: str
-    language: str = "fr"
-    author: str | None = None
-    publisher: str | None = None
-    date: str | None = None
-    identifier: str | None = None
+from mistral_converter.metadata import Metadata
 
 
 def _build_toc(book_chapters: list[tuple[Chapter, str]]) -> list:
@@ -43,13 +33,10 @@ def _build_toc(book_chapters: list[tuple[Chapter, str]]) -> list:
     return [convert(n) for n in roots]
 
 
-def build_epub(ocr_json: Path, metadata: Metadata, output: Path) -> Path:
+def build_epub(pages: list[dict], metadata: Metadata, output: Path) -> Path:
     """Build an EPUB from the page blocks and images of an OCR response."""
-    response = json.loads(ocr_json.read_text(encoding="utf-8"))
-    pages = response["pages"]
-
     book = epub.EpubBook()
-    book.set_identifier(metadata.identifier or f"urn:mistral-converter:{metadata.title}")
+    book.set_identifier(f"urn:mistral-converter:{metadata.title}")
     book.set_title(metadata.title)
     book.set_language(metadata.language)
     if metadata.author:

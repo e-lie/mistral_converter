@@ -1,21 +1,26 @@
 import argparse
+import json
 from pathlib import Path
 
-from mistral_converter.epub import Metadata, build_epub
+from mistral_converter.epub import build_epub
+from mistral_converter.metadata import Metadata, resolve_metadata
 from mistral_converter.ocr import ocr_document
 
 
 def epub_command(args) -> list[Path]:
     stem = args.ocr_json.name.removesuffix(".json").removesuffix(".ocr")
-    metadata = Metadata(
-        title=args.title or stem,
-        language=args.language,
+    pages = json.loads(args.ocr_json.read_text(encoding="utf-8"))["pages"]
+    overrides = Metadata(
+        title=args.title,
         author=args.author,
-        publisher=args.publisher,
         date=args.date,
+        publisher=args.publisher,
+        language=args.language,
     )
-    output = args.ocr_json.with_name(stem + ".epub")
-    return [build_epub(args.ocr_json, metadata, output)]
+    metadata = resolve_metadata(
+        pages, args.ocr_json.with_name(stem + ".meta.json"), overrides, stem
+    )
+    return [build_epub(pages, metadata, args.ocr_json.with_name(stem + ".epub"))]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     epub.add_argument("ocr_json", type=Path)
     epub.add_argument("--title")
     epub.add_argument("--author")
-    epub.add_argument("--language", default="fr")
+    epub.add_argument("--language")
     epub.add_argument("--publisher")
     epub.add_argument("--date")
     epub.set_defaults(handler=epub_command)
