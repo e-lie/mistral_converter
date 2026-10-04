@@ -1,19 +1,12 @@
 import base64
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from ebooklib import epub
-from markdown_it import MarkdownIt
 
-FURNITURE_TYPES = {"header", "footer"}
-CHAPTER_LEVELS = {1, 2}
-PRELIMINARY_TITLE = "Préliminaires"
-
-_md = MarkdownIt("commonmark").enable("table")
-_HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
-
+from mistral_converter.content import Chapter, Heading, body_markdown, split_chapters
 
 @dataclass
 class Metadata:
@@ -23,68 +16,6 @@ class Metadata:
     publisher: str | None = None
     date: str | None = None
     identifier: str | None = None
-
-
-@dataclass
-class Heading:
-    level: int
-    title: str
-    anchor: str
-
-
-@dataclass
-class Chapter:
-    title: str
-    html: str = ""
-    headings: list[Heading] = field(default_factory=list)
-
-
-def _block_markdown(block: dict) -> str:
-    content = block["content"].strip()
-    if block["type"] == "title":
-        # OCR titles may span several lines; an ATX heading is a single line
-        first, *rest = content.splitlines()
-        if _HEADING.match(first):
-            return " ".join([first, *(line.strip() for line in rest)])
-    return content
-
-
-def page_markdown(page: dict) -> str:
-    """Markdown of a page without page furniture."""
-    blocks = [b for b in page.get("blocks") or [] if b["type"] not in FURNITURE_TYPES]
-    return "\n\n".join(_block_markdown(b) for b in blocks)
-
-
-def _render(markdown: str, chapter: Chapter, counter: list[int]) -> str:
-    tokens = _md.parse(markdown)
-    for i, token in enumerate(tokens):
-        if token.type == "heading_open":
-            counter[0] += 1
-            anchor = f"h{counter[0]}"
-            token.attrSet("id", anchor)
-            title = tokens[i + 1].content
-            chapter.headings.append(Heading(int(token.tag[1]), title, anchor))
-    return _md.renderer.render(tokens, _md.options, {})
-
-
-def split_chapters(markdown: str) -> list[Chapter]:
-    """Cut the Markdown into chapters opened by each level 1 or 2 heading."""
-    sections: list[tuple[str, list[str]]] = [(PRELIMINARY_TITLE, [])]
-    for chunk in markdown.split("\n\n"):
-        match = _HEADING.match(chunk.strip().splitlines()[0]) if chunk.strip() else None
-        if match and len(match.group(1)) in CHAPTER_LEVELS:
-            sections.append((match.group(2).strip(), []))
-        sections[-1][1].append(chunk)
-
-    counter = [0]
-    chapters = []
-    for title, chunks in sections:
-        if not any(c.strip() for c in chunks):
-            continue
-        chapter = Chapter(title)
-        chapter.html = _render("\n\n".join(chunks), chapter, counter)
-        chapters.append(chapter)
-    return chapters
 
 
 def _build_toc(book_chapters: list[tuple[Chapter, str]]) -> list:
@@ -145,7 +76,7 @@ def build_epub(ocr_json: Path, metadata: Metadata, output: Path) -> Path:
                 )
             )
 
-    markdown = "\n\n".join(page_markdown(p) for p in pages)
+    markdown = body_markdown(pages)
     markdown = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", r"![\1](images/\2)", markdown)
     chapters = split_chapters(markdown)
 
