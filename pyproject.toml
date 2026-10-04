@@ -3,7 +3,11 @@ name = "mistral-converter"
 version = "0.1.0"
 description = "Convert PDF ebooks to Markdown with the Mistral OCR API"
 requires-python = ">=3.10"
-dependencies = ["mistralai"]
+dependencies = [
+    "ebooklib>=0.20",
+    "markdown-it-py>=4.2.0",
+    "mistralai",
+]
 
 [project.scripts]
 mistral-converter = "mistral_converter.cli:main"
