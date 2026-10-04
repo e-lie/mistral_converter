@@ -76,9 +76,9 @@ def build_epub(ocr_json: Path, metadata: Metadata, output: Path) -> Path:
                 )
             )
 
-    markdown = body_markdown(pages)
+    markdown, notes = body_markdown(pages)
     markdown = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", r"![\1](images/\2)", markdown)
-    chapters = split_chapters(markdown)
+    chapters = split_chapters(markdown, notes)
 
     items = []
     for i, chapter in enumerate(chapters, 1):
