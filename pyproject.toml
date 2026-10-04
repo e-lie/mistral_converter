@@ -6,11 +6,11 @@ requires-python = ">=3.10"
 dependencies = ["mistralai"]
 
 [project.scripts]
-ocr-pdf = "ocr_pdf:main"
+mistral-converter = "mistral_converter.cli:main"
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["ocr_pdf"]
+[tool.setuptools.packages.find]
+where = ["src"]
