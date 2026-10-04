@@ -5,7 +5,7 @@ from markdown_it import MarkdownIt
 
 FURNITURE_TYPES = {"header", "footer"}
 FOOTNOTE_TYPE = "references"
-CHAPTER_LEVELS = {1, 2}
+CHAPTER_LEVELS = {1}
 PRELIMINARY_TITLE = "Préliminaires"
 FINAL_PUNCTUATION = ".!?…»”\"':;"
 
@@ -141,7 +141,7 @@ def _render(markdown: str, chapter: Chapter, counter: list[int]) -> str:
 
 
 def split_chapters(markdown: str, notes: dict[int, str]) -> list[Chapter]:
-    """Cut the Markdown into chapters opened by each level 1 or 2 heading."""
+    """Cut the Markdown into chapters opened by each level 1 heading."""
     sections: list[tuple[str, list[str]]] = [(PRELIMINARY_TITLE, [])]
     for chunk in markdown.split("\n\n"):
         match = _HEADING.match(chunk.strip().splitlines()[0]) if chunk.strip() else None
