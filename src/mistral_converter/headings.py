@@ -11,7 +11,7 @@ from mistral_converter.content import FOOTNOTE_TYPE, FURNITURE_TYPES
 HEADING_FIX_MODEL = "mistral-large-latest"
 EXCERPT_CHARS = 200
 TOC_MAX_CHARS = 8000
-PRINTED_TOC_TITLE = re.compile(r"table\s+des\s+mati[èe]res|sommaire|contents", re.IGNORECASE)
+PRINTED_TOC_TITLE = re.compile(r"table\s+des\s+mati[èe]res|sommaire|\bcontents\b", re.IGNORECASE)
 PROMPT = """\
 Below are the headings of a book converted by OCR, in reading order. Their levels are \
 inconsistent: a chapter number and its title may be separate headings of different levels, \
