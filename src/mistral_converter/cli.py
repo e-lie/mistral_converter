@@ -23,6 +23,20 @@ def epub_command(args) -> list[Path]:
     return [build_epub(pages, metadata, args.ocr_json.with_name(stem + ".epub"))]
 
 
+def convert_command(args) -> list[Path]:
+    json_path, md_path = ocr_document(args.source)
+    args.ocr_json = json_path
+    return [json_path, md_path, *epub_command(args)]
+
+
+def _add_epub_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--title")
+    parser.add_argument("--author")
+    parser.add_argument("--language")
+    parser.add_argument("--publisher")
+    parser.add_argument("--date")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mistral-converter")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -33,12 +47,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     epub = subparsers.add_parser("epub", help="Build an EPUB from an OCR response")
     epub.add_argument("ocr_json", type=Path)
-    epub.add_argument("--title")
-    epub.add_argument("--author")
-    epub.add_argument("--language")
-    epub.add_argument("--publisher")
-    epub.add_argument("--date")
+    _add_epub_options(epub)
     epub.set_defaults(handler=epub_command)
+
+    convert = subparsers.add_parser("convert", help="OCR a source document, then build its EPUB")
+    convert.add_argument("source", type=Path)
+    _add_epub_options(convert)
+    convert.set_defaults(handler=convert_command)
 
     return parser
 
