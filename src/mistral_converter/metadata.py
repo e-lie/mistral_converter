@@ -49,7 +49,7 @@ def infer_metadata(pages: list[dict]) -> Metadata:
 def _merge(*layers: Metadata) -> Metadata:
     """First non-empty value of each field, in layer order."""
     return Metadata(
-        **{f.name: next((v for l in layers if (v := getattr(l, f.name))), None) for f in fields(Metadata)}
+        **{f.name: next((v for layer in layers if (v := getattr(layer, f.name))), None) for f in fields(Metadata)}
     )
 
 
