@@ -12,6 +12,14 @@ dependencies = [
 [project.scripts]
 mistral-converter = "mistral_converter.cli:main"
 
+[project.optional-dependencies]
+web = [
+    "fastapi",
+    "jinja2",
+    "python-multipart",
+    "uvicorn",
+]
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"

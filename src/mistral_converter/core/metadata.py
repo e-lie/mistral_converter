@@ -1,12 +1,11 @@
 import json
-import os
 import sys
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
-from mistralai.client import Mistral
-
-from mistral_converter.content import body_markdown
+from mistral_converter.core.book import write_json_atomic
+from mistral_converter.core.content import body_markdown
+from mistral_converter.core.mistral import MistralApi, MistralClient
 
 METADATA_MODEL = "mistral-small-latest"
 METADATA_PAGES = 10
@@ -33,16 +32,11 @@ class Metadata:
             setattr(self, f.name, str(value) if value not in (None, "") else None)
 
 
-def infer_metadata(pages: list[dict]) -> Metadata:
+def infer_metadata(pages: list[dict], api: MistralApi | None = None) -> Metadata:
     """Ask a Mistral chat model for the book metadata from the first pages."""
     text, _ = body_markdown(pages[:METADATA_PAGES])
-    client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
-    response = client.chat.complete(
-        model=METADATA_MODEL,
-        messages=[{"role": "user", "content": f"{PROMPT}\n\n{text}"}],
-        response_format={"type": "json_object"},
-    )
-    data = json.loads(response.choices[0].message.content)
+    api = api or MistralClient()
+    data = json.loads(api.chat_json(METADATA_MODEL, f"{PROMPT}\n\n{text}"))
     return Metadata(**{f.name: data.get(f.name) or None for f in fields(Metadata)})
 
 
@@ -54,7 +48,11 @@ def _merge(*layers: Metadata) -> Metadata:
 
 
 def resolve_metadata(
-    pages: list[dict], meta_path: Path, overrides: Metadata, fallback_title: str
+    pages: list[dict],
+    meta_path: Path,
+    overrides: Metadata,
+    fallback_title: str,
+    api: MistralApi | None = None,
 ) -> Metadata:
     """CLI overrides, then the metadata file, then the model; fall back with a warning."""
     stored = Metadata()
@@ -63,10 +61,8 @@ def resolve_metadata(
     inferred = Metadata()
     if not meta_path.exists() and not all(asdict(overrides).values()):
         try:
-            inferred = infer_metadata(pages)
-            meta_path.write_text(
-                json.dumps(asdict(inferred), ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            inferred = infer_metadata(pages, api)
+            write_json_atomic(meta_path, asdict(inferred))
         except Exception as error:
             print(f"warning: metadata inference failed ({error})", file=sys.stderr)
     return _merge(

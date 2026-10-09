@@ -3,31 +3,25 @@ import json
 import sys
 from pathlib import Path
 
-from mistral_converter.epub import build_epub
-from mistral_converter.headings import HeadingFixError, fix_headings
-from mistral_converter.metadata import Metadata, resolve_metadata
-from mistral_converter.ocr import ocr_document
-
-
-def _stem(ocr_json: Path) -> str:
-    return ocr_json.name.removesuffix(".json").removesuffix(".ocr").removesuffix(".fixed")
+from mistral_converter.core.book import Book, write_json_atomic
+from mistral_converter.core.epub import build_epub
+from mistral_converter.core.headings import HeadingFixError, fix_headings
+from mistral_converter.core.metadata import Metadata, resolve_metadata
+from mistral_converter.core.ocr import ocr_document
 
 
 def fix_command(args) -> list[Path]:
-    stem = _stem(args.ocr_json)
-    fixed_path = args.ocr_json.with_name(stem + ".fixed.ocr.json")
-    if fixed_path.exists() and not args.force:
-        return [fixed_path]
+    book = Book.of(args.ocr_json)
+    if book.fixed_json.exists() and not args.force:
+        return [book.fixed_json]
     response = json.loads(args.ocr_json.read_text(encoding="utf-8"))
     response["pages"] = fix_headings(response["pages"])
-    fixed_path.write_text(json.dumps(response, ensure_ascii=False, indent=2), encoding="utf-8")
-    return [fixed_path]
+    return [write_json_atomic(book.fixed_json, response)]
 
 
 def epub_command(args) -> list[Path]:
-    stem = _stem(args.ocr_json)
-    fixed_path = args.ocr_json.with_name(stem + ".fixed.ocr.json")
-    source = fixed_path if fixed_path.exists() and not args.no_fix else args.ocr_json
+    book = Book.of(args.ocr_json)
+    source = book.ocr_json if args.no_fix else book.best_ocr_json
     pages = json.loads(source.read_text(encoding="utf-8"))["pages"]
     overrides = Metadata(
         title=args.title,
@@ -36,10 +30,8 @@ def epub_command(args) -> list[Path]:
         publisher=args.publisher,
         language=args.language,
     )
-    metadata = resolve_metadata(
-        pages, args.ocr_json.with_name(stem + ".meta.json"), overrides, stem
-    )
-    return [build_epub(pages, metadata, args.ocr_json.with_name(stem + ".epub"))]
+    metadata = resolve_metadata(pages, book.meta_json, overrides, book.stem)
+    return [build_epub(pages, metadata, book.epub)]
 
 
 def convert_command(args) -> list[Path]:

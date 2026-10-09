@@ -4,8 +4,8 @@ from pathlib import Path
 
 from ebooklib import epub
 
-from mistral_converter.content import Chapter, Heading, body_markdown, split_chapters
-from mistral_converter.metadata import Metadata
+from mistral_converter.core.content import Chapter, Heading, body_markdown, split_chapters
+from mistral_converter.core.metadata import Metadata
 
 
 def _build_toc(book_chapters: list[tuple[Chapter, str]]) -> list:
@@ -83,5 +83,10 @@ def build_epub(pages: list[dict], metadata: Metadata, output: Path) -> Path:
     book.add_item(epub.EpubNav())
     book.spine = ["nav", *(item for _, _, item in items)]
 
-    epub.write_epub(str(output), book)
+    tmp = output.with_name(f".{output.name}.tmp")
+    try:
+        epub.write_epub(str(tmp), book)
+        tmp.replace(output)
+    finally:
+        tmp.unlink(missing_ok=True)
     return output

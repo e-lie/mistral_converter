@@ -1,12 +1,10 @@
 import copy
 import json
-import os
 import re
 import sys
 
-from mistralai.client import Mistral
-
-from mistral_converter.content import FOOTNOTE_TYPE, FURNITURE_TYPES
+from mistral_converter.core.content import FOOTNOTE_TYPE, FURNITURE_TYPES
+from mistral_converter.core.mistral import MistralApi, MistralClient
 
 HEADING_FIX_MODEL = "mistral-large-latest"
 EXCERPT_CHARS = 200
@@ -163,7 +161,7 @@ def describe_headings(pages: list[dict]) -> list[dict]:
     return headings
 
 
-def propose_edits(pages: list[dict]) -> list[dict]:
+def propose_edits(pages: list[dict], api: MistralApi | None = None) -> list[dict]:
     """Ask the model for heading edits; raise HeadingFixError on failure or invalid answer."""
     toc = detect_printed_toc(pages)
     prompt = PROMPT.format(toc_hint=TOC_HINT if toc else "")
@@ -171,13 +169,8 @@ def propose_edits(pages: list[dict]) -> list[dict]:
     if toc:
         parts += ["Printed table of contents:", toc]
     try:
-        client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
-        response = client.chat.complete(
-            model=HEADING_FIX_MODEL,
-            messages=[{"role": "user", "content": "\n\n".join(parts)}],
-            response_format={"type": "json_object"},
-        )
-        edits = json.loads(response.choices[0].message.content)["edits"]
+        api = api or MistralClient()
+        edits = json.loads(api.chat_json(HEADING_FIX_MODEL, "\n\n".join(parts)))["edits"]
     except Exception as error:
         raise HeadingFixError(f"heading fix failed ({error})") from error
     if not isinstance(edits, list):
@@ -258,6 +251,6 @@ def apply_edits(pages: list[dict], edits: list[dict]) -> list[dict]:
     return fixed
 
 
-def fix_headings(pages: list[dict]) -> list[dict]:
+def fix_headings(pages: list[dict], api: MistralApi | None = None) -> list[dict]:
     """Fixed copy of the pages: LLM-proposed heading edits, applied deterministically."""
-    return apply_edits(pages, propose_edits(pages))
+    return apply_edits(pages, propose_edits(pages, api))
