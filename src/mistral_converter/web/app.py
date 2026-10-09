@@ -103,6 +103,7 @@ def create_app(
             "labels": STEP_LABELS,
             "ocr_step": Step.OCR,
             "key_ok": current_api() is not None,
+            "unlock_hint": settings.unlock_hint,
             "polling": any(b["busy"] for b in books),
             "q": quote,
         }

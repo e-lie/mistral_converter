@@ -15,7 +15,7 @@ form.inline { display: inline; }
 </head>
 <body>
 <h1>Mistral converter</h1>
-{% if not key_ok %}<p class="error">The Mistral API key is unavailable: OCR and heading fix are disabled.</p>{% endif %}
+{% if not key_ok %}<p class="error">The Mistral API key is unavailable: OCR and heading fix are disabled.{% if unlock_hint %} Unlock the vault as root with <code>{{ unlock_hint }}</code>.{% endif %}</p>{% endif %}
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
 <h2>Working folder</h2>
