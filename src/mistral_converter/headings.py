@@ -18,31 +18,45 @@ PROMPT = """\
 Below are the headings of a book converted by OCR, in reading order. Their levels are \
 inconsistent: a chapter number and its title may be separate headings of different levels, \
 sections of one chapter may sit at different levels, running titles and stray lines may be \
-marked as headings, and levels may shift from one chapter to the next.
+marked as headings, and levels may shift from one chapter to the next. Do not trust the \
+original levels: rebuild the hierarchy logically from the content of the headings.
 
-Goal: level 1 is a chapter (its number and title form one heading), levels 2 to 6 are \
-sections nested in a chapter.{toc_hint}
+How to reason:
+- Spot the numbering series: "CHAPITRE PREMIER", "CHAPITRE II", "CHAPITRE III"...; \
+"PREMIÈRE PARTIE", "DEUXIÈME PARTIE"...; "I.", "II.", "III."; "1.", "2."; "A.", "B.". All \
+members of one series play the same role and must get the same level, wherever they are in \
+the book, even if the OCR gave them different levels.
+- A series that restarts (a new "I." after "III.") means a new parent began: the numbered \
+headings belong to the closest preceding heading of the level above (for example the sections \
+"I.", "II." under the chapter that precedes them). Check that the sequence is complete and \
+in order.
+- A chapter number and its title (for example "CHAPITRE PREMIER" followed by "VIE DE \
+SPINOZA") are one heading: merge them.
+- Level 1 is the top-level division of the book: chapters, or the parts when the book groups \
+its chapters into parts. Each level below is nested in the previous one (a chapter inside a \
+part, a section inside a chapter). Unnumbered headings such as an introduction, a preface, \
+a conclusion or a bibliography sit at the level of the chapters.
+- Headings that repeat a running title, or that are stray lines, are not real headings: \
+demote them.{toc_hint}
 
 Reply with a JSON object {{"edits": [...]}}. Each edit targets a heading by its "page" and \
 "block" values and has an "action":
 - {{"page": p, "block": b, "action": "set_level", "level": 1-6}}
 - {{"page": p, "block": b, "action": "merge"}}: merge the heading with the heading that \
-immediately follows it (for example "CHAPITRE PREMIER" and its title); the result keeps the \
-level of the first one
-- {{"page": p, "block": b, "action": "demote"}}: the heading is not a real heading (running \
-title, stray line); turn it into plain text
+immediately follows it; the result keeps the level of the first one. After a merge, give the \
+level of the merged heading on the first one.
+- {{"page": p, "block": b, "action": "demote"}}: turn the heading into plain text
 Only edit what needs fixing. Never rewrite heading text. There must remain at least one \
 level 1 heading.
 """
-TOC_HINT = " The printed table of contents of the book is given below; follow its structure."
-EDGE_PAGES_HINT = (
-    " The first and last pages of the book are given below: if something in them looks like "
-    "a printed table of contents, follow its structure."
+TOC_HINT = (
+    "\n- The printed table of contents of the book is given below: use it as the reference "
+    "for the order and the hierarchy of the parts, chapters and sections."
 )
-EDGE_PAGES = 10
 TOC_MIN_LINES = 5
 TOC_PAGE_NUMBER_SHARE = 0.5
-_TRAILING_PAGE_NUMBER = re.compile(r"(\d{1,4}|[ivxlcdm]{1,8})\s*$", re.IGNORECASE)
+TOC_SHORT_LINE = 100
+_TRAILING_PAGE_NUMBER = re.compile(r"(?<!\w)(\d{1,4}|[ivxlcdm]{1,8})\s*$", re.IGNORECASE)
 
 
 class HeadingFixError(Exception):
@@ -76,34 +90,50 @@ def _body_blocks(pages: list[dict]) -> list[tuple[int, int, dict]]:
     ]
 
 
+def _entry_lines(text: str) -> list[str]:
+    lines = [line.strip().rstrip("|").strip() for line in text.splitlines()]
+    return [line for line in lines if line]
+
+
+def _numbered_share(lines: list[str]) -> float:
+    return sum(1 for line in lines if _TRAILING_PAGE_NUMBER.search(line)) / len(lines)
+
+
 def looks_like_toc(text: str) -> bool:
     """Several lines, most of them ending with a page number."""
-    lines = [line.strip().rstrip("|").strip() for line in text.splitlines()]
-    lines = [line for line in lines if line]
-    numbered = sum(1 for line in lines if _TRAILING_PAGE_NUMBER.search(line))
-    return len(lines) >= TOC_MIN_LINES and numbered / len(lines) >= TOC_PAGE_NUMBER_SHARE
+    lines = _entry_lines(text)
+    return len(lines) >= TOC_MIN_LINES and _numbered_share(lines) >= TOC_PAGE_NUMBER_SHARE
 
 
-def edge_pages_text(pages: list[dict]) -> str:
-    """Body text of the first and last pages, to look for a table of contents without a title."""
-    indexes = sorted({*range(min(EDGE_PAGES, len(pages))), *range(max(0, len(pages) - EDGE_PAGES), len(pages))})
-    return "\n\n".join(
-        f"[page {i}]\n" + "\n\n".join(b["content"].strip() for b in pages[i].get("blocks") or [] if _is_body(b))
-        for i in indexes
-    )
+def _continues_toc(block: dict) -> bool:
+    """Titles and table of contents entries continue a printed table of contents; prose ends it."""
+    if block["type"] == "title":
+        return True
+    lines = _entry_lines(block["content"])
+    if len(lines) == 1:
+        return len(lines[0]) < TOC_SHORT_LINE or _numbered_share(lines) > 0
+    return bool(lines) and _numbered_share(lines) > TOC_PAGE_NUMBER_SHARE
 
 
 def detect_printed_toc(pages: list[dict]) -> str | None:
-    """Text from a table of contents heading up to the next title, size-capped; None if it does not look like one."""
+    """Text of the printed table of contents, size-capped; None if no heading starts one.
+
+    Starts at a table of contents heading and goes on through the titles and entries that
+    follow, until prose; the result must look like a table of contents.
+    """
     blocks = _body_blocks(pages)
     for i, (_, _, block) in enumerate(blocks):
         if block["type"] == "title" and PRINTED_TOC_TITLE.search(_title_text(block)):
-            parts = []
+            entries = []
             for _, _, following in blocks[i + 1 :]:
-                if following["type"] == "title":
+                if not _continues_toc(following):
                     break
-                parts.append(following["content"].strip())
-            text = "\n".join(parts)
+                entries.append(following)
+            while entries and entries[-1]["type"] == "title":
+                entries.pop()  # a title right before the prose opens the next section
+            text = "\n".join(
+                _title_text(e) if e["type"] == "title" else e["content"].strip() for e in entries
+            )
             if looks_like_toc(text):
                 return text[:TOC_MAX_CHARS]
     return None
@@ -136,12 +166,10 @@ def describe_headings(pages: list[dict]) -> list[dict]:
 def propose_edits(pages: list[dict]) -> list[dict]:
     """Ask the model for heading edits; raise HeadingFixError on failure or invalid answer."""
     toc = detect_printed_toc(pages)
-    prompt = PROMPT.format(toc_hint=TOC_HINT if toc else EDGE_PAGES_HINT)
+    prompt = PROMPT.format(toc_hint=TOC_HINT if toc else "")
     parts = [prompt, "Headings:", json.dumps(describe_headings(pages), ensure_ascii=False)]
     if toc:
         parts += ["Printed table of contents:", toc]
-    else:
-        parts += ["First and last pages:", edge_pages_text(pages)]
     try:
         client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
         response = client.chat.complete(
