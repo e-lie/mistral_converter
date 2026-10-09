@@ -11,7 +11,9 @@ from mistral_converter.content import FOOTNOTE_TYPE, FURNITURE_TYPES
 HEADING_FIX_MODEL = "mistral-large-latest"
 EXCERPT_CHARS = 200
 TOC_MAX_CHARS = 8000
-PRINTED_TOC_TITLE = re.compile(r"\bmati[èe]res\b|\bsommaire\b|\bcontents\b", re.IGNORECASE)
+PRINTED_TOC_TITLE = re.compile(
+    r"\btable\b.*\b(mati[èe]res|contents)\b|\bsommaire\b", re.IGNORECASE
+)
 PROMPT = """\
 Below are the headings of a book converted by OCR, in reading order. Their levels are \
 inconsistent: a chapter number and its title may be separate headings of different levels, \
@@ -77,7 +79,8 @@ def detect_printed_toc(pages: list[dict]) -> str | None:
                     break
                 parts.append(following["content"].strip())
             text = "\n".join(parts)
-            return text[:TOC_MAX_CHARS] if text.strip() else None
+            if text.strip():
+                return text[:TOC_MAX_CHARS]
     return None
 
 
