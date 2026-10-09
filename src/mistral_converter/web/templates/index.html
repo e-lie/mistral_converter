@@ -15,7 +15,20 @@ form.inline { display: inline; }
 </head>
 <body>
 <h1>Mistral converter</h1>
-{% if not key_ok %}<p class="error">The Mistral API key is unavailable: OCR and heading fix are disabled.{% if unlock_hint %} Unlock the vault as root with <code>{{ unlock_hint }}</code>.{% endif %}</p>{% endif %}
+{% if not key_ok %}<p class="error">The Mistral API key is not set: OCR and heading fix are disabled.</p>{% endif %}
+<details{% if not key_ok %} open{% endif %}>
+  <summary>Mistral API key{% if key_ok %} (set){% endif %}</summary>
+  <form class="inline" method="post" action="{{ root }}/key">
+    <input type="hidden" name="folder" value="{{ folder }}">
+    <input type="password" name="key" autocomplete="off" placeholder="API key" required>
+    <button>Save</button>
+  </form>
+  {% if key_ok %}<form class="inline" method="post" action="{{ root }}/key/delete">
+    <input type="hidden" name="folder" value="{{ folder }}">
+    <button>Remove</button>
+  </form>{% endif %}
+  <small>Stored on the server for your account only.</small>
+</details>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
 <h2>Working folder</h2>

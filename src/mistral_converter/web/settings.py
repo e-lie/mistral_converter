@@ -10,10 +10,6 @@ class Settings:
     dev_user: str | None = None
     max_upload_mb: int = 200
     root_path: str = ""
-    rbw_item: str | None = None
-    rbw_user: str | None = None
-    rbw_retry_seconds: float = 30
-    unlock_hint: str | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -23,10 +19,6 @@ class Settings:
             dev_user=os.environ.get("MC_DEV_USER") or None,
             max_upload_mb=int(os.environ.get("MC_MAX_UPLOAD_MB", "200")),
             root_path=os.environ.get("MC_ROOT_PATH", ""),
-            rbw_item=os.environ.get("MC_RBW_ITEM") or None,
-            rbw_user=os.environ.get("MC_RBW_USER") or None,
-            rbw_retry_seconds=float(os.environ.get("MC_RBW_RETRY_SECONDS", "30")),
-            unlock_hint=os.environ.get("MC_UNLOCK_HINT") or None,
         )
 
     @property

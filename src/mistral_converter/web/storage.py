@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 
@@ -44,3 +45,28 @@ def stem_from_filename(filename: str) -> str:
 def delete_book(book: Book) -> None:
     for path in (book.pdf, book.ocr_json, book.markdown, book.fixed_json, book.meta_json, book.epub):
         path.unlink(missing_ok=True)
+
+
+def _key_path(data_dir: Path, user: str) -> Path:
+    return user_base(data_dir, user) / ".mistral_key"
+
+
+def read_key(data_dir: Path, user: str) -> str | None:
+    try:
+        return _key_path(data_dir, user).read_text().strip() or None
+    except FileNotFoundError:
+        return None
+
+
+def write_key(data_dir: Path, user: str, key: str) -> None:
+    path = _key_path(data_dir, user)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as out:
+        out.write(key)
+    os.replace(tmp, path)
+
+
+def delete_key(data_dir: Path, user: str) -> None:
+    _key_path(data_dir, user).unlink(missing_ok=True)

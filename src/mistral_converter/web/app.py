@@ -16,7 +16,6 @@ from mistral_converter.core.ocr import ocr_document
 from mistral_converter.core.steps import epub_book, fix_book
 from mistral_converter.web import storage
 from mistral_converter.web.jobs import JobQueue
-from mistral_converter.web.secret import KeyStore, RbwRun, run_rbw
 from mistral_converter.web.settings import Settings
 
 CHUNK = 1024 * 1024
@@ -34,35 +33,31 @@ STEP_LABELS = {Step.OCR: "OCR", Step.FIX: "Heading fix", Step.EPUB: "EPUB"}
 def create_app(
     settings: Settings | None = None,
     api: MistralApi | None = None,
-    rbw: RbwRun = run_rbw,
     api_factory: Callable[[str], MistralApi] = lambda key: MistralClient(key),
 ) -> FastAPI:
-    """Without an explicit `api`, the Mistral key is read from rbw and the API built from it."""
+    """Without an explicit `api`, each user's Mistral key is read from their own key file."""
     settings = settings or Settings.from_env()
     app = FastAPI()
     app.state.settings = settings
     app.state.api = api
-    keys = app.state.keys = KeyStore(settings.rbw_item, settings.rbw_user, rbw, settings.rbw_retry_seconds)
-    if api is None and settings.rbw_item:
-        keys.start()
     built: dict[str, MistralApi] = {}
 
-    def current_api() -> MistralApi | None:
+    def current_api(user: str) -> MistralApi | None:
         if app.state.api is not None:
             return app.state.api
-        key = keys.key
+        key = storage.read_key(settings.data_dir, user)
         if key is None:
             return None
         if key not in built:
-            built.clear()
             built[key] = api_factory(key)
         return built[key]
 
-    def require_api() -> MistralApi:
-        found = current_api()
+    def require_api(user: str) -> MistralApi:
+        found = current_api(user)
         if found is None:
-            raise HTTPException(503, "The Mistral API key is unavailable")
+            raise HTTPException(503, "The Mistral API key is not set")
         return found
+
     jobs = app.state.jobs = JobQueue()
     app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -106,8 +101,7 @@ def create_app(
             "books": books,
             "labels": STEP_LABELS,
             "ocr_step": Step.OCR,
-            "key_ok": current_api() is not None,
-            "unlock_hint": settings.unlock_hint,
+            "key_ok": current_api(user) is not None,
             "polling": any(b["busy"] for b in books),
             "q": quote,
         }
@@ -188,12 +182,12 @@ def create_app(
         user = current_user(request)
         return templates.TemplateResponse(request, "_books.html", books_context(request, user, folder))
 
-    def step_job(book: Book, step: Step, metadata: Metadata):
+    def step_job(user: str, book: Book, step: Step, metadata: Metadata):
         if step is Step.OCR:
-            api = require_api()
+            api = require_api(user)
             return lambda: ocr_document(book.pdf, api)
         if step is Step.FIX:
-            api = require_api()
+            api = require_api(user)
 
             def fix():
                 if not book.ocr_json.exists():
@@ -201,7 +195,7 @@ def create_app(
                 fix_book(book, api)
 
             return fix
-        api = current_api()
+        api = current_api(user)
 
         def epub():
             if not book.ocr_json.exists():
@@ -234,20 +228,34 @@ def create_app(
             steps = [s for s in Step if overwrite or not book.is_done(s)]
             if not steps:
                 raise HTTPException(409, "All steps are already done")
-            work = [(s, step_job(book, s, metadata)) for s in steps]
+            work = [(s, step_job(user, book, s, metadata)) for s in steps]
         elif name in STEP_NAMES:
             step = STEP_NAMES[name]
             if step is not Step.OCR and not book.is_done(Step.OCR):
                 raise HTTPException(409, "OCR must be done first")
             if book.is_done(step) and not overwrite:
                 raise HTTPException(409, f"{STEP_LABELS[step]} is already done")
-            work = [(step, step_job(book, step, metadata))]
+            work = [(step, step_job(user, book, step, metadata))]
         else:
             raise HTTPException(404, "Unknown step")
         for step, job in work:
             if not jobs.submit(book, step, job):
                 raise HTTPException(409, f"{STEP_LABELS[step]} is already running")
         return templates.TemplateResponse(request, "_books.html", books_context(request, user, folder))
+
+    @app.post("/key")
+    def set_key(request: Request, key: str = Form(...), folder: str = Form("")):
+        user = current_user(request)
+        key = key.strip()
+        if not key:
+            raise HTTPException(400, "Enter the Mistral API key")
+        storage.write_key(settings.data_dir, user, key)
+        return RedirectResponse(f"{root_of(request)}/?folder={quote(folder)}", 303)
+
+    @app.post("/key/delete")
+    def remove_key(request: Request, folder: str = Form("")):
+        storage.delete_key(settings.data_dir, current_user(request))
+        return RedirectResponse(f"{root_of(request)}/?folder={quote(folder)}", 303)
 
     @app.post("/delete")
     def delete(request: Request, folder: str = Form(...), stem: str = Form(...)):

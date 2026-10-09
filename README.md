@@ -34,7 +34,7 @@ A small web UI (FastAPI and htmx) lets signed-in users upload PDFs, run the step
 
 ```bash
 uv sync --extra web
-MC_DATA_DIR=data MC_DEV_USER=me MC_RBW_ITEM=mistral uv run uvicorn --factory mistral_converter.web.app:create_app
+MC_DATA_DIR=data MC_DEV_USER=me uv run uvicorn --factory mistral_converter.web.app:create_app
 ```
 
 | Variable | Purpose | Default |
@@ -44,11 +44,8 @@ MC_DATA_DIR=data MC_DEV_USER=me MC_RBW_ITEM=mistral uv run uvicorn --factory mis
 | `MC_DEV_USER` | user to assume when the header is absent (development) | none |
 | `MC_MAX_UPLOAD_MB` | upload size limit | `200` |
 | `MC_ROOT_PATH` | URL prefix when served under a path | empty |
-| `MC_RBW_ITEM` | [rbw](https://github.com/doy/rbw) item holding the Mistral API key | none |
-| `MC_RBW_USER` | entry user, if the item name is ambiguous | none |
-| `MC_RBW_RETRY_SECONDS` | delay between key lookups while the vault is locked | `30` |
 
-The API key is read with `rbw get` and kept in memory only. While it is unavailable, OCR and heading fix are refused.
+Each user enters their Mistral API key in the web page; it is stored in `<MC_DATA_DIR>/<user>/.mistral_key` (mode 600). While it is not set, OCR and heading fix are refused.
 
 ## Tests
 
