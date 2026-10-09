@@ -39,7 +39,7 @@ def create_app(
 ) -> FastAPI:
     """Without an explicit `api`, the Mistral key is read from rbw and the API built from it."""
     settings = settings or Settings.from_env()
-    app = FastAPI(root_path=settings.root_path)
+    app = FastAPI()
     app.state.settings = settings
     app.state.api = api
     keys = app.state.keys = KeyStore(settings.rbw_item, settings.rbw_user, rbw, settings.rbw_retry_seconds)
@@ -66,6 +66,10 @@ def create_app(
     jobs = app.state.jobs = JobQueue()
     app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+    def root_of(request: Request) -> str:
+        # nginx strips the prefix, so it is only used to build links
+        return settings.root_path or request.scope.get("root_path", "")
 
     def current_user(request: Request) -> str:
         user = request.headers.get(settings.user_header) or settings.dev_user
@@ -97,7 +101,7 @@ def create_app(
                     }
                 )
         return {
-            "root": request.scope.get("root_path", ""),
+            "root": root_of(request),
             "folder": folder,
             "books": books,
             "labels": STEP_LABELS,
@@ -162,7 +166,7 @@ def create_app(
             os.replace(tmp, target)
         finally:
             Path(tmp).unlink(missing_ok=True)
-        return RedirectResponse(f"{request.scope.get('root_path', '')}/?folder={quote(folder)}", 303)
+        return RedirectResponse(f"{root_of(request)}/?folder={quote(folder)}", 303)
 
     def book_of(user: str, folder: str, stem: str) -> Book:
         if "/" in stem or "\\" in stem or stem.startswith("."):
@@ -254,6 +258,6 @@ def create_app(
         if jobs.is_busy(book):
             raise HTTPException(409, "A step is running on this book")
         storage.delete_book(book)
-        return RedirectResponse(f"{request.scope.get('root_path', '')}/?folder={quote(folder)}", 303)
+        return RedirectResponse(f"{root_of(request)}/?folder={quote(folder)}", 303)
 
     return app
