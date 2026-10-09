@@ -35,6 +35,14 @@ Only edit what needs fixing. Never rewrite heading text. There must remain at le
 level 1 heading.
 """
 TOC_HINT = " The printed table of contents of the book is given below; follow its structure."
+EDGE_PAGES_HINT = (
+    " The first and last pages of the book are given below: if something in them looks like "
+    "a printed table of contents, follow its structure."
+)
+EDGE_PAGES = 10
+TOC_MIN_LINES = 5
+TOC_PAGE_NUMBER_SHARE = 0.5
+_TRAILING_PAGE_NUMBER = re.compile(r"(\d{1,4}|[ivxlcdm]{1,8})\s*$", re.IGNORECASE)
 
 
 class HeadingFixError(Exception):
@@ -68,8 +76,25 @@ def _body_blocks(pages: list[dict]) -> list[tuple[int, int, dict]]:
     ]
 
 
+def looks_like_toc(text: str) -> bool:
+    """Several lines, most of them ending with a page number."""
+    lines = [line.strip().rstrip("|").strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    numbered = sum(1 for line in lines if _TRAILING_PAGE_NUMBER.search(line))
+    return len(lines) >= TOC_MIN_LINES and numbered / len(lines) >= TOC_PAGE_NUMBER_SHARE
+
+
+def edge_pages_text(pages: list[dict]) -> str:
+    """Body text of the first and last pages, to look for a table of contents without a title."""
+    indexes = sorted({*range(min(EDGE_PAGES, len(pages))), *range(max(0, len(pages) - EDGE_PAGES), len(pages))})
+    return "\n\n".join(
+        f"[page {i}]\n" + "\n\n".join(b["content"].strip() for b in pages[i].get("blocks") or [] if _is_body(b))
+        for i in indexes
+    )
+
+
 def detect_printed_toc(pages: list[dict]) -> str | None:
-    """Text from a table of contents heading up to the next title, size-capped."""
+    """Text from a table of contents heading up to the next title, size-capped; None if it does not look like one."""
     blocks = _body_blocks(pages)
     for i, (_, _, block) in enumerate(blocks):
         if block["type"] == "title" and PRINTED_TOC_TITLE.search(_title_text(block)):
@@ -79,7 +104,7 @@ def detect_printed_toc(pages: list[dict]) -> str | None:
                     break
                 parts.append(following["content"].strip())
             text = "\n".join(parts)
-            if text.strip():
+            if looks_like_toc(text):
                 return text[:TOC_MAX_CHARS]
     return None
 
@@ -111,10 +136,12 @@ def describe_headings(pages: list[dict]) -> list[dict]:
 def propose_edits(pages: list[dict]) -> list[dict]:
     """Ask the model for heading edits; raise HeadingFixError on failure or invalid answer."""
     toc = detect_printed_toc(pages)
-    prompt = PROMPT.format(toc_hint=TOC_HINT if toc else "")
+    prompt = PROMPT.format(toc_hint=TOC_HINT if toc else EDGE_PAGES_HINT)
     parts = [prompt, "Headings:", json.dumps(describe_headings(pages), ensure_ascii=False)]
     if toc:
         parts += ["Printed table of contents:", toc]
+    else:
+        parts += ["First and last pages:", edge_pages_text(pages)]
     try:
         client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
         response = client.chat.complete(
