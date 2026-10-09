@@ -1,28 +1,24 @@
 import argparse
-import json
 import sys
 from pathlib import Path
 
-from mistral_converter.core.book import Book, write_json_atomic
-from mistral_converter.core.epub import build_epub
-from mistral_converter.core.headings import HeadingFixError, fix_headings
-from mistral_converter.core.metadata import Metadata, resolve_metadata
+from mistral_converter.core.book import Book
+from mistral_converter.core.headings import HeadingFixError
+from mistral_converter.core.metadata import Metadata
 from mistral_converter.core.ocr import ocr_document
+from mistral_converter.core.steps import epub_book, fix_book
 
 
 def fix_command(args) -> list[Path]:
     book = Book.of(args.ocr_json)
     if book.fixed_json.exists() and not args.force:
         return [book.fixed_json]
-    response = json.loads(args.ocr_json.read_text(encoding="utf-8"))
-    response["pages"] = fix_headings(response["pages"])
-    return [write_json_atomic(book.fixed_json, response)]
+    return [fix_book(book, source=args.ocr_json)]
 
 
 def epub_command(args) -> list[Path]:
     book = Book.of(args.ocr_json)
     source = book.ocr_json if args.no_fix else book.best_ocr_json
-    pages = json.loads(source.read_text(encoding="utf-8"))["pages"]
     overrides = Metadata(
         title=args.title,
         author=args.author,
@@ -30,8 +26,7 @@ def epub_command(args) -> list[Path]:
         publisher=args.publisher,
         language=args.language,
     )
-    metadata = resolve_metadata(pages, book.meta_json, overrides, book.stem)
-    return [build_epub(pages, metadata, book.epub)]
+    return [epub_book(book, overrides, source=source)]
 
 
 def convert_command(args) -> list[Path]:
