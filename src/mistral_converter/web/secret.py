@@ -1,5 +1,6 @@
 import subprocess
 import threading
+import time
 from collections.abc import Callable
 
 RbwRun = Callable[[list[str]], str]
@@ -21,7 +22,6 @@ class KeyStore:
         self._run = run
         self._retry = retry_seconds
         self._key: str | None = None
-        self._stop = threading.Event()
 
     @property
     def key(self) -> str | None:
@@ -42,5 +42,4 @@ class KeyStore:
 
     def _loop(self) -> None:
         while not self.resolve():
-            if self._stop.wait(self._retry):
-                return
+            time.sleep(self._retry)

@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 from fastapi.testclient import TestClient
 
@@ -50,8 +51,6 @@ def test_locked_vault_refuses_steps_then_recovers(tmp_path):
     assert post(client, "all").status_code == 503
 
     rbw.locked = False
-    import time
-
     deadline = time.time() + 5
     while "API key is unavailable" in client.get("/", params={"folder": "books"}).text:
         assert time.time() < deadline
