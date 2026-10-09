@@ -34,7 +34,7 @@ dev = [
 ]
 
 [tool.setuptools.package-data]
-"mistral_converter.web" = ["templates/*.html"]
+"mistral_converter.web" = ["templates/*.html", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

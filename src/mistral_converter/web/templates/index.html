@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mistral converter</title>
+<script src="{{ root }}/static/htmx.min.js"></script>
 <style>
 body { font-family: sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
 .error { background: #fde8e8; border: 1px solid #c33; padding: .5rem 1rem; }
@@ -31,32 +32,7 @@ form.inline { display: inline; }
   <button>Upload</button> <small>PDF, up to {{ max_mb }} MB</small>
 </form>
 
-<h2>Books</h2>
-{% if books %}
-<table>
-  <tr><th>Book</th>{% for step in labels %}<th>{{ labels[step] }}</th>{% endfor %}<th>Files</th><th></th></tr>
-  {% for book in books %}
-  <tr>
-    <td>{{ book.stem }}</td>
-    {% for step in labels %}<td>{{ "✓" if book.status[step] else "–" }}</td>{% endfor %}
-    <td>
-      {% for kind in book.files %}
-      <a href="{{ root }}/download?folder={{ q(folder) }}&amp;stem={{ q(book.stem) }}&amp;kind={{ kind }}">{{ kind }}</a>
-      {% endfor %}
-    </td>
-    <td>
-      <form class="inline" method="post" action="{{ root }}/delete" onsubmit="return confirm('Delete this book and its files?')">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <input type="hidden" name="stem" value="{{ book.stem }}">
-        <button>Delete</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No books yet.</p>
-{% endif %}
+<div id="books-wrap">{% include "_books.html" %}</div>
 {% endif %}
 </body>
 </html>

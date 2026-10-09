@@ -1,0 +1,43 @@
+<div id="books"{% if polling %} hx-get="{{ root }}/books?folder={{ q(folder) }}" hx-trigger="every 2s" hx-target="#books" hx-swap="outerHTML"{% endif %}>
+<h2>Books</h2>
+{% if books %}
+<table>
+  <tr><th>Book</th>{% for step in labels %}<th>{{ labels[step] }}</th>{% endfor %}<th>Files</th><th></th></tr>
+  {% for book in books %}
+  <tr>
+    <td>{{ book.stem }}</td>
+    {% for step in labels %}
+    {% set state, message = book.states[step] %}
+    <td>
+      {% if state == "running" %}⏳
+      {% elif state == "done" %}✓
+      {% elif state == "failed" %}<span class="error">✗ {{ message }}</span>
+      {% endif %}
+      {% if step.value == "ocr" and state in ("todo", "failed") %}
+      <form class="inline" hx-post="{{ root }}/steps/ocr" hx-target="#books" hx-swap="outerHTML">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <input type="hidden" name="stem" value="{{ book.stem }}">
+        <button>{{ "Retry" if state == "failed" else "Run" }}</button>
+      </form>
+      {% elif state == "todo" %}–{% endif %}
+    </td>
+    {% endfor %}
+    <td>
+      {% for kind in book.files %}
+      <a href="{{ root }}/download?folder={{ q(folder) }}&amp;stem={{ q(book.stem) }}&amp;kind={{ kind }}">{{ kind }}</a>
+      {% endfor %}
+    </td>
+    <td>
+      <form class="inline" method="post" action="{{ root }}/delete" onsubmit="return confirm('Delete this book and its files?')">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <input type="hidden" name="stem" value="{{ book.stem }}">
+        <button>Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No books yet.</p>
+{% endif %}
+</div>

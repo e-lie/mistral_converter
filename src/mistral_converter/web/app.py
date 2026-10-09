@@ -5,11 +5,14 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from mistral_converter.core.book import Book, Step
 from mistral_converter.core.mistral import MistralApi
+from mistral_converter.core.ocr import ocr_document
 from mistral_converter.web import storage
+from mistral_converter.web.jobs import JobQueue
 from mistral_converter.web.settings import Settings
 
 CHUNK = 1024 * 1024
@@ -28,6 +31,8 @@ def create_app(settings: Settings | None = None, api: MistralApi | None = None) 
     app = FastAPI(root_path=settings.root_path)
     app.state.settings = settings
     app.state.api = api
+    jobs = app.state.jobs = JobQueue()
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
     def current_user(request: Request) -> str:
@@ -46,30 +51,37 @@ def create_app(settings: Settings | None = None, api: MistralApi | None = None) 
         except storage.InvalidPath as error:
             raise HTTPException(400, str(error))
 
-    def page(request: Request, user: str, folder: str = "", error: str | None = None, status: int = 200):
+    def books_context(request: Request, user: str, folder: str) -> dict:
         books = []
         if folder:
-            working = folder_of(user, folder)
-            books = [
-                {"stem": b.stem, "status": b.status(), "files": [k for k, f in FILE_KINDS.items() if f(b).exists()]}
-                for b in working.books()
-            ]
-        return templates.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "root": request.scope.get("root_path", ""),
-                "user": user,
-                "folder": folder,
-                "folders": storage.subfolders(settings.data_dir, user),
-                "books": books,
-                "labels": STEP_LABELS,
-                "max_mb": settings.max_upload_mb,
-                "error": error,
-                "q": quote,
-            },
-            status_code=status,
-        )
+            for book in folder_of(user, folder).books():
+                states = {step: jobs.state(book, step) for step in Step}
+                books.append(
+                    {
+                        "stem": book.stem,
+                        "states": states,
+                        "busy": any(state == "running" for state, _ in states.values()),
+                        "files": [k for k, f in FILE_KINDS.items() if f(book).exists()],
+                    }
+                )
+        return {
+            "root": request.scope.get("root_path", ""),
+            "folder": folder,
+            "books": books,
+            "labels": STEP_LABELS,
+            "polling": any(b["busy"] for b in books),
+            "q": quote,
+        }
+
+    def page(request: Request, user: str, folder: str = "", error: str | None = None, status: int = 200):
+        context = books_context(request, user, folder)
+        context |= {
+            "user": user,
+            "folders": storage.subfolders(settings.data_dir, user),
+            "max_mb": settings.max_upload_mb,
+            "error": error,
+        }
+        return templates.TemplateResponse(request, "index.html", context, status_code=status)
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, error: HTTPException):
@@ -117,24 +129,45 @@ def create_app(settings: Settings | None = None, api: MistralApi | None = None) 
             Path(tmp).unlink(missing_ok=True)
         return RedirectResponse(f"{request.scope.get('root_path', '')}/?folder={quote(folder)}", 303)
 
+    def book_of(user: str, folder: str, stem: str) -> Book:
+        if "/" in stem or "\\" in stem or stem.startswith("."):
+            raise HTTPException(400, "Invalid request")
+        return Book(folder_of(user, folder).path, stem)
+
     @app.get("/download")
     def download(request: Request, folder: str, stem: str, kind: str):
         user = current_user(request)
-        if kind not in FILE_KINDS or "/" in stem or "\\" in stem or stem.startswith("."):
+        if kind not in FILE_KINDS:
             raise HTTPException(400, "Invalid request")
-        path = FILE_KINDS[kind](Book(folder_of(user, folder).path, stem))
+        path = FILE_KINDS[kind](book_of(user, folder, stem))
         if not path.is_file():
             raise HTTPException(404, "File not found")
         return FileResponse(path, filename=path.name)
 
+    @app.get("/books", response_class=HTMLResponse)
+    def books_fragment(request: Request, folder: str):
+        user = current_user(request)
+        return templates.TemplateResponse(request, "_books.html", books_context(request, user, folder))
+
+    @app.post("/steps/ocr", response_class=HTMLResponse)
+    def start_ocr(request: Request, folder: str = Form(...), stem: str = Form(...)):
+        user = current_user(request)
+        book = book_of(user, folder, stem)
+        if not book.pdf.exists():
+            raise HTTPException(404, "Book not found")
+        if book.is_done(Step.OCR):
+            raise HTTPException(409, "OCR is already done")
+        jobs.submit(book, Step.OCR, lambda: ocr_document(book.pdf, app.state.api))
+        return templates.TemplateResponse(request, "_books.html", books_context(request, user, folder))
+
     @app.post("/delete")
     def delete(request: Request, folder: str = Form(...), stem: str = Form(...)):
         user = current_user(request)
-        if "/" in stem or "\\" in stem or stem.startswith("."):
-            raise HTTPException(400, "Invalid request")
-        book = Book(folder_of(user, folder).path, stem)
+        book = book_of(user, folder, stem)
         if not book.pdf.exists():
             raise HTTPException(404, "Book not found")
+        if jobs.is_busy(book):
+            raise HTTPException(409, "A step is running on this book")
         storage.delete_book(book)
         return RedirectResponse(f"{request.scope.get('root_path', '')}/?folder={quote(folder)}", 303)
 

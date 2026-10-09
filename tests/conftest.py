@@ -40,3 +40,15 @@ def upload(client, folder="books", name="book.pdf", content=PDF):
         files={"file": (name, content, "application/pdf")},
         follow_redirects=False,
     )
+
+
+def wait_for(client, folder, predicate, timeout=5):
+    import time
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        page = client.get("/books", params={"folder": folder}).text
+        if predicate(page):
+            return page
+        time.sleep(0.02)
+    raise AssertionError(f"condition not met, last page:\n{page}")
