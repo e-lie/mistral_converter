@@ -26,3 +26,15 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "pytest",
+]
+
+[tool.setuptools.package-data]
+"mistral_converter.web" = ["templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

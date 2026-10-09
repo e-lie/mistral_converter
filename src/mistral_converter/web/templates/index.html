@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mistral converter</title>
+<style>
+body { font-family: sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+.error { background: #fde8e8; border: 1px solid #c33; padding: .5rem 1rem; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border-bottom: 1px solid #ddd; padding: .4rem; text-align: left; }
+form.inline { display: inline; }
+</style>
+</head>
+<body>
+<h1>Mistral converter</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<h2>Working folder</h2>
+<form method="get" action="{{ root }}/">
+  <input name="folder" value="{{ folder }}" placeholder="subfolder name" list="folders" required>
+  <datalist id="folders">{% for f in folders %}<option value="{{ f }}">{% endfor %}</datalist>
+  <button>Open</button>
+</form>
+
+{% if folder %}
+<h2>Upload a PDF to {{ folder }}</h2>
+<form method="post" action="{{ root }}/upload" enctype="multipart/form-data">
+  <input type="hidden" name="folder" value="{{ folder }}">
+  <input type="file" name="file" accept="application/pdf,.pdf" required>
+  <button>Upload</button> <small>PDF, up to {{ max_mb }} MB</small>
+</form>
+
+<h2>Books</h2>
+{% if books %}
+<table>
+  <tr><th>Book</th>{% for step in labels %}<th>{{ labels[step] }}</th>{% endfor %}<th>Files</th><th></th></tr>
+  {% for book in books %}
+  <tr>
+    <td>{{ book.stem }}</td>
+    {% for step in labels %}<td>{{ "✓" if book.status[step] else "–" }}</td>{% endfor %}
+    <td>
+      {% for kind in book.files %}
+      <a href="{{ root }}/download?folder={{ q(folder) }}&amp;stem={{ q(book.stem) }}&amp;kind={{ kind }}">{{ kind }}</a>
+      {% endfor %}
+    </td>
+    <td>
+      <form class="inline" method="post" action="{{ root }}/delete" onsubmit="return confirm('Delete this book and its files?')">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <input type="hidden" name="stem" value="{{ book.stem }}">
+        <button>Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No books yet.</p>
+{% endif %}
+{% endif %}
+</body>
+</html>
