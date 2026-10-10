@@ -47,6 +47,10 @@ MC_DATA_DIR=data MC_DEV_USER=me uv run uvicorn --factory mistral_converter.web.a
 
 Each user enters their Mistral API key in the web page; it is stored in `<MC_DATA_DIR>/<user>/.mistral_key` (mode 600). While it is not set, OCR and heading fix are refused.
 
+## YunoHost
+
+The repository root is also a YunoHost package (`manifest.toml`, `scripts/`, `conf/`). Install and upgrade commands are in `doc/ADMIN.md`.
+
 ## Tests
 
 ```bash
