@@ -85,3 +85,5 @@ button.danger {
   body > * { padding-inline: .5rem; }
   h1 { --pico-font-size: 1.6rem; }
 }
+
+.failure { color: var(--app-danger); white-space: normal; }

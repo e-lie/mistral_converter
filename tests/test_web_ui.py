@@ -50,3 +50,15 @@ def test_styleguide_lists_components(client):
     page = client.get("/styleguide").text
     for part in ("badge running", "badge done", "badge failed", 'class="alert"', "secondary", "danger", "disabled", "hx-post"):
         assert part in page
+
+
+def test_styleguide_assets_use_root_path(settings):
+    import dataclasses
+
+    from fastapi.testclient import TestClient
+
+    from mistral_converter.web.app import create_app
+
+    settings = dataclasses.replace(settings, root_path="/conv")
+    page = TestClient(create_app(settings, None), headers={"Remote-User": "alice"}).get("/styleguide").text
+    assert 'href="/conv/static/app.css"' in page
