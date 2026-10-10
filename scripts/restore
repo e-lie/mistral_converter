@@ -1,0 +1,28 @@
+#!/bin/bash
+
+source ../settings/scripts/_common.sh
+source /usr/share/yunohost/helpers
+
+# The code, env file and data dir come from the backup; the venv is rebuilt
+ynh_script_progression "Restoring the app environment..."
+ynh_restore "$install_dir/src"
+ynh_restore "$install_dir/pyproject.toml"
+ynh_restore "$install_dir/uv.lock"
+build_env
+ynh_restore "$install_dir/env"
+chown "$app:$app" "$install_dir/env"
+
+ynh_script_progression "Restoring system configurations..."
+ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_restore "/etc/systemd/system/$app.service"
+ynh_restore "/etc/logrotate.d/$app"
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chown -R "$app:$app" "$data_dir"
+systemctl enable "$app.service" --quiet
+
+ynh_script_progression "Starting the service..."
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
+ynh_systemctl --service=nginx --action=reload
+
+ynh_script_progression "Restoration completed for $app"

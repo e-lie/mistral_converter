@@ -1,0 +1,19 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_script_progression "Setting up source files..."
+setup_app
+
+ynh_script_progression "Adding system configurations..."
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chown -R "$app:$app" "$data_dir"
+apply_config
+
+ynh_script_progression "Starting the service..."
+ynh_systemctl --service="$app" --action="enable"
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression "Installation of $app completed"

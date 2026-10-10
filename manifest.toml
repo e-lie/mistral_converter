@@ -1,0 +1,79 @@
+packaging_format = 2
+
+id = "mistral_converter"
+name = "Mistral Converter"
+description.en = "Convert PDF books to Markdown and EPUB with the Mistral OCR API"
+description.fr = "Convertir des livres PDF en Markdown et EPUB avec l'API OCR de Mistral"
+
+version = "0.1.2~ynh1"
+
+maintainers = ["Elie Gavoty"]
+
+[upstream]
+license = "AGPL-3.0-or-later"
+code = "https://github.com/e-lie/mistral_converter"
+
+[integration]
+yunohost = ">= 12.1.17"
+helpers_version = "2.1"
+architectures = ["amd64", "arm64"]
+multi_instance = true
+ldap = "not_relevant"
+sso = "not_relevant"
+disk = "200M"
+ram.build = "300M"
+ram.runtime = "150M"
+
+[install]
+    [install.domain]
+    type = "domain"
+
+    [install.path]
+    type = "path"
+    default = "/mistral_converter"
+
+    [install.init_main_permission]
+    type = "group"
+    default = "all_users"
+
+    [install.upload_limit]
+    ask.en = "Upload limit in MB"
+    ask.fr = "Limite d'envoi en Mo"
+    type = "number"
+    default = 200
+    min = 1
+    max = 100000
+
+[resources]
+
+    [resources.sources]
+
+        [resources.sources.uv]
+        extract = true
+        in_subdir = true
+        autoupdate.strategy = "latest_github_release"
+        autoupdate.asset.amd64 = "^uv-x86_64-unknown-linux-gnu\\.tar\\.gz$"
+        autoupdate.asset.arm64 = "^uv-aarch64-unknown-linux-gnu\\.tar\\.gz$"
+
+            [resources.sources.uv.amd64]
+            url = "https://github.com/astral-sh/uv/releases/download/0.12.24/uv-x86_64-unknown-linux-gnu.tar.gz"
+            sha256 = "b4dfaef47d491a7296981f8374a4595f55dbf84e8937c8ecd2983574d8bb3da6"
+
+            [resources.sources.uv.arm64]
+            url = "https://github.com/astral-sh/uv/releases/download/0.12.24/uv-aarch64-unknown-linux-gnu.tar.gz"
+            sha256 = "5231be65f496304623895dacdbf1de8504fec90303684bdf05805aa34414dd21"
+
+    [resources.system_user]
+
+    [resources.install_dir]
+
+    [resources.data_dir]
+    subdirs = []
+
+    [resources.permissions]
+    main.url = "/"
+
+    [resources.ports]
+
+    [resources.apt]
+    packages = "python3"

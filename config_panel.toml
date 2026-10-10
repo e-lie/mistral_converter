@@ -1,0 +1,17 @@
+version = "1.0"
+
+[main]
+name.en = "Settings"
+name.fr = "Paramètres"
+
+    [main.upload]
+    name.en = "Uploads"
+    name.fr = "Envois"
+
+        [main.upload.upload_limit]
+        ask.en = "Upload limit in MB"
+        ask.fr = "Limite d'envoi en Mo"
+        help.en = "Applied by nginx and by the app."
+        type = "number"
+        min = 1
+        max = 100000

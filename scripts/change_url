@@ -1,0 +1,18 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+# $old_domain, $old_path, $new_domain and $new_path are provided by YunoHost
+ynh_script_progression "Updating nginx and app configuration..."
+ynh_config_remove_nginx
+domain="$new_domain"
+path="$new_path"
+ynh_app_setting_set --key=domain --value="$domain"
+ynh_app_setting_set --key=path --value="$path"
+apply_config
+
+ynh_script_progression "Restarting the service..."
+ynh_systemctl --service="$app" --action="restart" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression "Change of URL completed"

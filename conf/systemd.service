@@ -1,0 +1,25 @@
+[Unit]
+Description=Mistral Converter web UI (__APP__)
+After=network.target
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+EnvironmentFile=__INSTALL_DIR__/env
+Environment=HOME=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/venv/bin/uvicorn --factory mistral_converter.web.app:create_app --host 127.0.0.1 --port __PORT__ --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/__APP__/__APP__.log
+StandardError=inherit
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=__INSTALL_DIR__ __DATA_DIR__ /var/log/__APP__
+
+[Install]
+WantedBy=multi-user.target

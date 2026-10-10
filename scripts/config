@@ -1,0 +1,13 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_app_config_apply() {
+    _ynh_app_config_apply
+    apply_config
+    ynh_systemctl --service=nginx --action=reload
+    ynh_systemctl --service="$app" --action=restart --log_path="/var/log/$app/$app.log"
+}
+
+ynh_app_config_run "$1"
