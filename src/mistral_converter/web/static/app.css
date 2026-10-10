@@ -1,0 +1,87 @@
+:root {
+  --pico-border-radius: .4rem;
+  --pico-font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pico-primary: #2f6f8f;
+  --pico-primary-hover: #25596f;
+  --pico-primary-background: #2f6f8f;
+  --pico-primary-hover-background: #25596f;
+  --app-danger: #b3261e;
+  --app-success: #2e7d32;
+  --app-warning: #8a6100;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pico-primary: #7fb7d4;
+    --pico-primary-background: #2f6f8f;
+    --app-danger: #f2837c;
+    --app-success: #7fc784;
+    --app-warning: #e0b44c;
+  }
+}
+
+body > * { max-width: 60rem; margin-inline: auto; padding-inline: 1rem; }
+header, main { display: block; }
+
+.table-wrap { overflow-x: auto; }
+td, th { white-space: nowrap; }
+
+form.inline { display: inline-block; margin: 0; }
+form.inline button, form.inline input { margin-bottom: 0; width: auto; }
+form.inline input { display: inline-block; }
+
+button, [role="button"] { --pico-form-element-spacing-vertical: .35rem; --pico-form-element-spacing-horizontal: .8rem; }
+button.secondary {
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-primary);
+  --pico-border-color: var(--pico-primary);
+  background-color: transparent;
+  border: 1px solid var(--pico-primary);
+  color: var(--pico-primary);
+}
+button.danger {
+  --pico-background-color: var(--app-danger);
+  --pico-border-color: var(--app-danger);
+  background-color: var(--app-danger);
+  border-color: var(--app-danger);
+  color: #fff;
+}
+
+.alert {
+  border: 1px solid var(--app-danger);
+  border-left-width: .35rem;
+  border-radius: var(--pico-border-radius);
+  color: var(--app-danger);
+  margin-bottom: 1rem;
+  padding: .6rem 1rem;
+}
+
+.badge {
+  border-radius: 1rem;
+  display: inline-block;
+  font-size: .8rem;
+  padding: 0 .55rem;
+  border: 1px solid currentColor;
+}
+.badge.running { color: var(--app-warning); }
+.badge.done { color: var(--app-success); }
+.badge.failed { color: var(--app-danger); }
+
+/* busy indicator: htmx sets .htmx-request on the requesting element */
+.htmx-request button { opacity: .7; pointer-events: none; }
+.htmx-request button::before {
+  animation: app-spin 1s linear infinite;
+  background: no-repeat center / 1em var(--pico-icon-loading);
+  content: "";
+  display: inline-block;
+  height: 1em;
+  margin-inline-end: .4rem;
+  vertical-align: -.125em;
+  width: 1em;
+}
+@keyframes app-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 40rem) {
+  body > * { padding-inline: .5rem; }
+  h1 { --pico-font-size: 1.6rem; }
+}

@@ -1,0 +1,38 @@
+{# Shared UI components; imported by the page and the htmx fragments #}
+
+{% macro button(label, variant="default", disabled=false) -%}
+<button{% if variant != "default" %} class="{{ variant }}"{% endif %}{% if disabled %} disabled{% endif %}>{{ label }}</button>
+{%- endmacro %}
+
+{% macro badge(state, message="") -%}
+{% if state == "running" %}<span class="badge running">⏳ running</span>
+{%- elif state == "done" %}<span class="badge done">✓ done</span>
+{%- elif state == "failed" %}<span class="badge failed">✗ failed</span>{% if message %} <small class="failure">{{ message }}</small>{% endif %}
+{%- endif %}
+{%- endmacro %}
+
+{% macro hidden_fields(folder, stem=none, overwrite=false) -%}
+<input type="hidden" name="folder" value="{{ folder }}">
+{% if stem is not none %}<input type="hidden" name="stem" value="{{ stem }}">{% endif %}
+{% if overwrite %}<input type="hidden" name="overwrite" value="true">{% endif %}
+{%- endmacro %}
+
+{# htmx post replacing #books; the call block holds extra fields and the button #}
+{% macro action_form(root, path, folder, stem=none, confirm=none, overwrite=false) -%}
+<form class="inline" hx-post="{{ root }}{{ path }}" hx-target="#books" hx-swap="outerHTML"{% if confirm %} hx-confirm="{{ confirm }}"{% endif %}>
+  {{ hidden_fields(folder, stem, overwrite) }}
+  {{ caller() }}
+</form>
+{%- endmacro %}
+
+{# plain form posting to a page route; the call block holds fields and the button #}
+{% macro page_form(root, path, folder, stem=none, confirm=none, method="post", enctype=none) -%}
+<form class="inline" method="{{ method }}" action="{{ root }}{{ path }}"{% if enctype %} enctype="{{ enctype }}"{% endif %}{% if confirm %} onsubmit="return confirm({{ confirm|tojson|forceescape }})"{% endif %}>
+  {% if method == "post" %}{{ hidden_fields(folder, stem) }}{% endif %}
+  {{ caller() }}
+</form>
+{%- endmacro %}
+
+{% macro alert(message) -%}
+<p class="alert" role="alert">{{ message }}</p>
+{%- endmacro %}

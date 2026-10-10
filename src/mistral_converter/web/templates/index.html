@@ -1,52 +1,46 @@
+{% from "_components.html" import page_form, button, alert %}
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Mistral converter</title>
+<link rel="stylesheet" href="{{ root }}/static/pico.classless.min.css">
+<link rel="stylesheet" href="{{ root }}/static/app.css">
 <script src="{{ root }}/static/htmx.min.js"></script>
-<style>
-body { font-family: sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
-.error { background: #fde8e8; border: 1px solid #c33; padding: .5rem 1rem; }
-table { border-collapse: collapse; width: 100%; }
-td, th { border-bottom: 1px solid #ddd; padding: .4rem; text-align: left; }
-form.inline { display: inline; }
-</style>
 </head>
 <body>
+<main>
 <h1>Mistral converter</h1>
-{% if not key_ok %}<p class="error">The Mistral API key is not set: OCR and heading fix are disabled.</p>{% endif %}
+{% if not key_ok %}{{ alert("The Mistral API key is not set: OCR and heading fix are disabled.") }}{% endif %}
 <details{% if not key_ok %} open{% endif %}>
   <summary>Mistral API key{% if key_ok %} (set){% endif %}</summary>
-  <form class="inline" method="post" action="{{ root }}/key">
-    <input type="hidden" name="folder" value="{{ folder }}">
+  {% call page_form(root, "/key", folder) %}
     <input type="password" name="key" autocomplete="off" placeholder="API key" required>
-    <button>Save</button>
-  </form>
-  {% if key_ok %}<form class="inline" method="post" action="{{ root }}/key/delete">
-    <input type="hidden" name="folder" value="{{ folder }}">
-    <button>Remove</button>
-  </form>{% endif %}
+    {{ button("Save") }}
+  {% endcall %}
+  {% if key_ok %}{% call page_form(root, "/key/delete", folder) %}{{ button("Remove", "danger") }}{% endcall %}{% endif %}
   <small>Stored on the server for your account only.</small>
 </details>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if error %}{{ alert(error) }}{% endif %}
 
 <h2>Working folder</h2>
-<form method="get" action="{{ root }}/">
+{% call page_form(root, "/", folder, method="get") %}
   <input name="folder" value="{{ folder }}" placeholder="subfolder name" list="folders" required>
   <datalist id="folders">{% for f in folders %}<option value="{{ f }}">{% endfor %}</datalist>
-  <button>Open</button>
-</form>
+  {{ button("Open") }}
+{% endcall %}
 
 {% if folder %}
 <h2>Upload a PDF to {{ folder }}</h2>
-<form method="post" action="{{ root }}/upload" enctype="multipart/form-data">
-  <input type="hidden" name="folder" value="{{ folder }}">
+{% call page_form(root, "/upload", folder, enctype="multipart/form-data") %}
   <input type="file" name="file" accept="application/pdf,.pdf" required>
-  <button>Upload</button> <small>PDF, up to {{ max_mb }} MB</small>
-</form>
+  {{ button("Upload") }} <small>PDF, up to {{ max_mb }} MB</small>
+{% endcall %}
 
 <div id="books-wrap">{% include "_books.html" %}</div>
 {% endif %}
+</main>
 </body>
 </html>

@@ -1,6 +1,8 @@
+{% from "_components.html" import action_form, page_form, badge, button %}
 <div id="books"{% if polling %} hx-get="{{ root }}/books?folder={{ q(folder) }}" hx-trigger="every 2s" hx-target="#books" hx-swap="outerHTML"{% endif %}>
 <h2>Books</h2>
 {% if books %}
+<div class="table-wrap">
 <table>
   <tr><th>Book</th>{% for step in labels %}<th>{{ labels[step] }}</th>{% endfor %}<th>Files</th><th></th></tr>
   {% for book in books %}
@@ -11,15 +13,9 @@
     {% set state, message = book.states[step] %}
     {% set blocked = (step != ocr_step and not ocr_done) or (step.value != "epub" and not key_ok) %}
     <td>
-      {% if state == "running" %}⏳
-      {% elif state == "done" %}✓
-      {% elif state == "failed" %}<span class="error">✗ {{ message }}</span>
-      {% endif %}
+      {{ badge(state, message) }}
       {% if state != "running" %}
-      <form class="inline" hx-post="{{ root }}/steps/{{ step.value }}" hx-target="#books" hx-swap="outerHTML"{% if state == "done" %} hx-confirm="Run {{ labels[step] }} again and replace its result?"{% endif %}>
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <input type="hidden" name="stem" value="{{ book.stem }}">
-        {% if state == "done" %}<input type="hidden" name="overwrite" value="true">{% endif %}
+      {% call action_form(root, "/steps/" ~ step.value, folder, book.stem, confirm=("Run " ~ labels[step] ~ " again and replace its result?") if state == "done", overwrite=state == "done") %}
         {% if step.value == "epub" %}
         <details><summary>Metadata</summary>
           {% for field in ("title", "author", "language", "publisher", "date") %}
@@ -27,8 +23,8 @@
           {% endfor %}
         </details>
         {% endif %}
-        <button{% if blocked %} disabled{% endif %}>{{ "Retry" if state == "failed" else "Re-run" if state == "done" else "Run" }}</button>
-      </form>
+        {{ button("Retry" if state == "failed" else "Re-run" if state == "done" else "Run", "secondary" if state == "done", blocked) }}
+      {% endcall %}
       {% endif %}
     </td>
     {% endfor %}
@@ -38,20 +34,13 @@
       {% endfor %}
     </td>
     <td>
-      <form class="inline" hx-post="{{ root }}/steps/all" hx-target="#books" hx-swap="outerHTML">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <input type="hidden" name="stem" value="{{ book.stem }}">
-        <button{% if book.busy or not key_ok %} disabled{% endif %}>Run all</button>
-      </form>
-      <form class="inline" method="post" action="{{ root }}/delete" onsubmit="return confirm('Delete this book and its files?')">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <input type="hidden" name="stem" value="{{ book.stem }}">
-        <button>Delete</button>
-      </form>
+      {% call action_form(root, "/steps/all", folder, book.stem) %}{{ button("Run all", disabled=book.busy or not key_ok) }}{% endcall %}
+      {% call page_form(root, "/delete", folder, book.stem, confirm="Delete this book and its files?") %}{{ button("Delete", "danger") }}{% endcall %}
     </td>
   </tr>
   {% endfor %}
 </table>
+</div>
 {% else %}
 <p>No books yet.</p>
 {% endif %}

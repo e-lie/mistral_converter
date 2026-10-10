@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import quote
@@ -176,6 +177,17 @@ def create_app(
         if not path.is_file():
             raise HTTPException(404, "File not found")
         return FileResponse(path, filename=path.name)
+
+    @app.get("/styleguide", response_class=HTMLResponse)
+    def styleguide(request: Request):
+        current_user(request)
+        return templates.TemplateResponse(request, "styleguide.html", {"root": root_of(request)})
+
+    @app.post("/styleguide/slow", response_class=HTMLResponse)
+    def styleguide_slow(request: Request):
+        current_user(request)
+        time.sleep(2)
+        return '<div id="books">Done.</div>'
 
     @app.get("/books", response_class=HTMLResponse)
     def books_fragment(request: Request, folder: str):

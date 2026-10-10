@@ -1,0 +1,60 @@
+{% from "_components.html" import button, badge, hidden_fields, action_form, page_form, alert %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Style guide</title>
+<link rel="stylesheet" href="{{ root }}/static/pico.classless.min.css">
+<link rel="stylesheet" href="{{ root }}/static/app.css">
+<script src="{{ root }}/static/htmx.min.js"></script>
+</head>
+<body>
+<main>
+<h1>Style guide</h1>
+<p><a href="{{ root }}/">Back to the converter</a></p>
+
+<h2>Buttons</h2>
+<p>
+  {{ button("Default") }}
+  {{ button("Secondary", "secondary") }}
+  {{ button("Danger", "danger") }}
+  {{ button("Disabled", disabled=true) }}
+</p>
+
+<h2>State badges</h2>
+<p>
+  {{ badge("running") }}
+  {{ badge("done") }}
+  {{ badge("failed", "Example failure message") }}
+</p>
+
+<h2>Alert</h2>
+{{ alert("Example error message") }}
+
+<h2>Hidden fields</h2>
+<pre><code>{{ hidden_fields("folder", "stem", true)|e }}</code></pre>
+
+<h2>Action form</h2>
+<p>Posts with htmx; the button shows a busy state while the request runs.</p>
+{% call action_form(root, "/styleguide/slow", "", confirm="Run the example?") %}{{ button("Run with confirm") }}{% endcall %}
+<div id="books"></div>
+
+<h2>Page form</h2>
+{% call page_form(root, "/styleguide", "", method="get") %}
+  <input name="sample" placeholder="text input">
+  {{ button("Submit") }}
+{% endcall %}
+
+<h2>Table</h2>
+<div class="table-wrap"><table>
+  <tr><th>Book</th><th>OCR</th><th>EPUB</th></tr>
+  <tr><td>sample</td><td>{{ badge("done") }}</td><td>{{ badge("running") }}</td></tr>
+</table></div>
+
+<h2>Collapsible</h2>
+<details><summary>Summary</summary><p>Hidden content.</p></details>
+</main>
+</body>
+</html>
