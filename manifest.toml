@@ -11,7 +11,7 @@ maintainers = ["Elie Gavoty"]
 
 [upstream]
 license = "AGPL-3.0-or-later"
-code = "https://github.com/e-lie/mistral_converter"
+code = "https://github.com/e-lie/mistral_converter_ynh"
 
 [integration]
 yunohost = ">= 12.1.17"

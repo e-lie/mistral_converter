@@ -10,12 +10,12 @@ The data directory (uploaded PDFs, conversion results and users' API keys) is in
 
 The repository must be public: YunoHost clones it without credentials.
 
-    sudo yunohost app install https://github.com/e-lie/mistral_converter
-    sudo yunohost app install https://github.com/e-lie/mistral_converter/tree/v0.1.2
-    sudo yunohost app install /path/to/mistral_converter
+    sudo yunohost app install https://github.com/e-lie/mistral_converter_ynh
+    sudo yunohost app install https://github.com/e-lie/mistral_converter_ynh/tree/v0.1.2
+    sudo yunohost app install /path/to/mistral_converter_ynh
 
-    sudo yunohost app upgrade mistral_converter -u https://github.com/e-lie/mistral_converter
-    sudo yunohost app upgrade mistral_converter -u https://github.com/e-lie/mistral_converter/tree/v0.1.2
-    sudo yunohost app upgrade mistral_converter -u /path/to/mistral_converter
+    sudo yunohost app upgrade mistral_converter -u https://github.com/e-lie/mistral_converter_ynh
+    sudo yunohost app upgrade mistral_converter -u https://github.com/e-lie/mistral_converter_ynh/tree/v0.1.2
+    sudo yunohost app upgrade mistral_converter -u /path/to/mistral_converter_ynh
 
 The deployed version is the git ref given at install or upgrade time. Bump the manifest version (`~ynhN` suffix) by hand.
